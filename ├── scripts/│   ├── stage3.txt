@@ -1,1 +1,10 @@
+# Этап 3: работа с виртуальной файловой системой
 
+pwd
+ls /
+ls /home
+ls /home/user
+vfs-save stage3-result.zip
+cd /home/user
+pwd
+exit
