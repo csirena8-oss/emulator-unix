@@ -1,1 +1,10 @@
+# Этап 5: команда chmod
 
+pwd
+ls -l /home/user/example.txt
+chmod 755 /home/user/example.txt
+ls -l /home/user/example.txt
+chmod wrong /home/user/example.txt
+chmod 644 /missing.txt
+vfs-save final.zip
+exit
