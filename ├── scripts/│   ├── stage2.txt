@@ -1,1 +1,6 @@
+# Этап 2: параметры запуска и стартовые скрипты
 
+pwd
+ls
+vfs-save stage2-result.zip
+exit
