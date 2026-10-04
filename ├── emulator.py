@@ -3,7 +3,6 @@
 import argparse
 import datetime
 import getpass
-import io
 import os
 import posixpath
 import re
@@ -21,7 +20,8 @@ class ShellError(Exception):
 class VFS:
     """
     Виртуальная файловая система.
-    Все операции выполняются в памяти.
+
+    Все файлы и каталоги хранятся в оперативной памяти.
     """
 
     def __init__(self):
@@ -31,6 +31,10 @@ class VFS:
 
     @staticmethod
     def normalize(path: str, cwd: str = "/") -> str:
+        """
+        Преобразует путь в нормализованный абсолютный путь.
+        """
+
         if not path:
             return cwd
 
@@ -45,15 +49,25 @@ class VFS:
         return result
 
     def add_dir(self, path: str):
+        """
+        Добавляет каталог и все его родительские каталоги.
+        """
+
         path = self.normalize(path)
         self.dirs.add(path)
 
         parent = posixpath.dirname(path)
+
         if parent and parent != path:
             self.add_dir(parent)
 
     def add_file(self, path: str, data: bytes, mode: int = 0o644):
+        """
+        Добавляет файл в VFS.
+        """
+
         path = self.normalize(path)
+
         self.files[path] = data
         self.modes[path] = mode
 
@@ -72,9 +86,14 @@ class VFS:
     def read_file(self, path: str) -> bytes:
         if not self.is_file(path):
             raise ShellError(f"cat: {path}: No such file")
+
         return self.files[path]
 
     def list_dir(self, path: str):
+        """
+        Возвращает список непосредственных элементов каталога.
+        """
+
         if not self.is_dir(path):
             raise ShellError(f"ls: {path}: No such directory")
 
@@ -82,6 +101,7 @@ class VFS:
 
         for item in self.files:
             parent = posixpath.dirname(item)
+
             if parent == path:
                 result.add(posixpath.basename(item))
 
@@ -90,6 +110,7 @@ class VFS:
                 continue
 
             parent = posixpath.dirname(item)
+
             if parent == path:
                 result.add(posixpath.basename(item))
 
@@ -97,6 +118,10 @@ class VFS:
 
     @classmethod
     def from_zip(cls, filename: str):
+        """
+        Загружает виртуальную файловую систему из ZIP-архива.
+        """
+
         vfs = cls()
 
         try:
@@ -112,6 +137,7 @@ class VFS:
                     data = archive.read(info.filename)
 
                     mode = (info.external_attr >> 16) & 0o777
+
                     if mode == 0:
                         mode = 0o644
 
@@ -119,14 +145,20 @@ class VFS:
 
         except FileNotFoundError:
             raise ShellError(f"vfs: file not found: {filename}")
+
         except zipfile.BadZipFile:
             raise ShellError(f"vfs: invalid ZIP archive: {filename}")
+
         except OSError as exc:
             raise ShellError(f"vfs: cannot load archive: {exc}")
 
         return vfs
 
     def save_zip(self, filename: str):
+        """
+        Сохраняет виртуальную файловую систему в ZIP-архив.
+        """
+
         try:
             with zipfile.ZipFile(
                 filename,
@@ -139,15 +171,20 @@ class VFS:
                         continue
 
                     name = directory.lstrip("/") + "/"
+
                     info = zipfile.ZipInfo(name)
                     info.external_attr = (0o755 & 0xFFFF) << 16
+
                     archive.writestr(info, b"")
 
                 for path, data in sorted(self.files.items()):
                     name = path.lstrip("/")
+
                     info = zipfile.ZipInfo(name)
+
                     mode = self.modes.get(path, 0o644)
                     info.external_attr = (mode & 0xFFFF) << 16
+
                     archive.writestr(info, data)
 
         except OSError as exc:
@@ -161,15 +198,23 @@ class Shell:
         self.running = True
 
     def prompt(self) -> str:
+        """
+        Формирует приглашение командной строки.
+        """
+
         username = getpass.getuser()
         hostname = socket.gethostname()
+
         display_cwd = "~" if self.cwd == "/" else self.cwd
+
         return f"{username}@{hostname}:{display_cwd}$ "
 
     def expand_environment(self, text: str) -> str:
         """
-        Поддерживаются формы:
+        Раскрывает переменные окружения:
+
         $HOME
+        $USER
         ${HOME}
         """
 
@@ -186,13 +231,23 @@ class Shell:
         return re.sub(pattern, replace, text)
 
     def parse(self, line: str):
+        """
+        Разбирает командную строку с учётом кавычек.
+        """
+
         line = self.expand_environment(line)
+
         try:
             return shlex.split(line)
+
         except ValueError as exc:
             raise ShellError(f"parse error: {exc}")
 
     def execute(self, line: str):
+        """
+        Выполняет одну команду.
+        """
+
         args = self.parse(line)
 
         if not args:
@@ -222,6 +277,7 @@ class Shell:
             raise ShellError("exit: too many arguments")
 
         self.running = False
+
         return ""
 
     def cmd_pwd(self, args):
@@ -241,6 +297,7 @@ class Shell:
             raise ShellError(f"cd: {target}: No such directory")
 
         self.cwd = path
+
         return ""
 
     def cmd_ls(self, args):
@@ -250,8 +307,10 @@ class Shell:
         for arg in args:
             if arg == "-l":
                 long_format = True
+
             elif arg.startswith("-"):
                 raise ShellError(f"ls: invalid option: {arg}")
+
             else:
                 paths.append(arg)
 
@@ -265,31 +324,43 @@ class Shell:
 
             if self.vfs.is_file(path):
                 names = [posixpath.basename(path)]
+
             elif self.vfs.is_dir(path):
                 names = self.vfs.list_dir(path)
+
             else:
-                raise ShellError(f"ls: cannot access '{item}': No such file or directory")
+                raise ShellError(
+                    f"ls: cannot access '{item}': "
+                    "No such file or directory"
+                )
 
             for name in names:
                 full_path = posixpath.join(path, name)
 
+                display_name = name
+
                 if self.vfs.is_dir(full_path):
-                    name += "/"
+                    display_name += "/"
 
                 if long_format:
                     mode = self.vfs.modes.get(full_path, 0o755)
                     permissions = stat.filemode(stat.S_IFREG | mode)
-                    output.append(f"{permissions} {name}")
+                    output.append(f"{permissions} {display_name}")
+
                 else:
-                    output.append(name)
+                    output.append(display_name)
 
         return "\n".join(output)
 
     def cmd_date(self, args):
         if args:
-            raise ShellError("date: this emulator does not support arguments")
+            raise ShellError(
+                "date: this emulator does not support arguments"
+            )
 
-        return datetime.datetime.now().astimezone().strftime("%a %b %d %H:%M:%S %Z %Y")
+        return datetime.datetime.now().astimezone().strftime(
+            "%a %b %d %H:%M:%S %Z %Y"
+        )
 
     def cmd_uniq(self, args):
         if len(args) != 1:
@@ -298,7 +369,10 @@ class Shell:
         path = self.vfs.normalize(args[0], self.cwd)
         data = self.vfs.read_file(path)
 
-        lines = data.decode("utf-8", errors="replace").splitlines()
+        lines = data.decode(
+            "utf-8",
+            errors="replace"
+        ).splitlines()
 
         result = []
         previous = object()
@@ -318,6 +392,7 @@ class Shell:
 
         try:
             mode = int(mode_text, 8)
+
         except ValueError:
             raise ShellError(f"chmod: invalid mode: {mode_text}")
 
@@ -328,7 +403,9 @@ class Shell:
             path = self.vfs.normalize(filename, self.cwd)
 
             if not self.vfs.exists(path):
-                raise ShellError(f"chmod: cannot access '{filename}': No such file")
+                raise ShellError(
+                    f"chmod: cannot access '{filename}': No such file"
+                )
 
             self.vfs.modes[path] = mode
 
@@ -339,9 +416,14 @@ class Shell:
             raise ShellError("vfs-save: usage: vfs-save PATH")
 
         self.vfs.save_zip(args[0])
+
         return f"VFS saved to {args[0]}"
 
     def run_line(self, line: str, show_input: bool = False):
+        """
+        Выполняет одну строку скрипта или интерактивного ввода.
+        """
+
         line = line.rstrip("\n")
 
         if not line.strip():
@@ -366,12 +448,18 @@ class Shell:
             return False
 
     def run_interactive(self):
+        """
+        Запускает интерактивный режим.
+        """
+
         while self.running:
             try:
                 line = input(self.prompt())
+
             except EOFError:
                 print()
                 break
+
             except KeyboardInterrupt:
                 print()
                 continue
@@ -379,6 +467,10 @@ class Shell:
             self.run_line(line)
 
     def run_script(self, filename: str):
+        """
+        Выполняет команды из текстового файла.
+        """
+
         try:
             with open(filename, "r", encoding="utf-8") as script:
                 for line_number, line in enumerate(script, start=1):
@@ -386,7 +478,8 @@ class Shell:
 
                     if not success:
                         print(
-                            f"script error: {filename}:{line_number}",
+                            f"script error: "
+                            f"{filename}:{line_number}",
                             file=sys.stderr
                         )
 
@@ -394,11 +487,18 @@ class Shell:
                         break
 
         except FileNotFoundError:
-            raise ShellError(f"startup script not found: {filename}")
+            raise ShellError(
+                f"startup script not found: {filename}"
+            )
 
 
 def create_default_vfs():
+    """
+    Создаёт VFS, используемую без параметра --vfs.
+    """
+
     vfs = VFS()
+
     vfs.add_dir("/home")
     vfs.add_dir("/home/user")
     vfs.add_dir("/tmp")
@@ -439,7 +539,10 @@ def main():
 
     print("Emulator configuration:")
     print(f"  VFS: {args.vfs or '<default in-memory VFS>'}")
-    print(f"  Startup script: {args.startup or '<interactive mode>'}")
+    print(
+        "  Startup script: "
+        f"{args.startup or '<interactive mode>'}"
+    )
 
     try:
         if args.vfs:
@@ -462,5 +565,7 @@ def main():
         return 1
 
 
+if __name__ == "__main__":
+    sys.exit(main())
 if __name__ == "__main__":
     sys.exit(main())
