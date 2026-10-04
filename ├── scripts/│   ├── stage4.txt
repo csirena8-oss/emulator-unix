@@ -1,1 +1,13 @@
+# Этап 4: основные команды
 
+pwd
+date
+ls
+ls -l
+cd /home/user
+pwd
+uniq example.txt
+cd ..
+cd /missing
+ls -x
+exit
