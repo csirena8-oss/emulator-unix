@@ -29,3 +29,24 @@ uniq
 chmod
 vfs-save
 exit
+```
+# Требования
+- Python 3.10 или новее;
+- стандартная библиотека Python;
+- дополнительные пакеты не требуются.
+
+
+## Интерактивный режим:
+
+python3 emulator.py
+## С VFS:
+
+python3 emulator.py --vfs vfs/test.zip
+## Со стартовым скриптом:
+
+python3 emulator.py --startup scripts/stage5.txt
+## С VFS и стартовым скриптом:
+
+python3 emulator.py \
+    --vfs vfs/test.zip \
+    --startup scripts/stage5.txt
