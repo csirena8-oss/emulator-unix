@@ -4,3 +4,5 @@ set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 exec python3 -m src.shell_emulator "$@"
+
+После клонирования: chmod +x run.sh.
