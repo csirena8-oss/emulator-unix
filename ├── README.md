@@ -92,3 +92,119 @@
 | `EMPTY_MARKER` | `"<не задан>"` | вид незаданного параметра. |
 
 ## 3. Описание команд для сборки проекта и запуска тестов
+bash
+
+### Подготовка (один раз)
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pytest
+```
+Запуск эмулятора
+chmod +x run.sh
+./run.sh
+
+Запуск с параметрами командной строки
+./run.sh --vfs samples/vfs.zip --script samples/demo.esh
+
+Запуск тестов
+python3 -m pytest -v
+
+Демонстрационные shell-скрипты реальной ОС
+chmod +x scripts/*.sh
+./scripts/run_default.sh
+./scripts/run_with_vfs.sh
+./scripts/run_with_script.sh
+./scripts/run_all_params.sh
+
+
+Copy
+
+## 4. Примеры использования
+
+### 4.1. Интерактивный режим (этап 1)
+
+text
+$ ./run.sh
+Отладка: параметры запуска эмулятора
+VFS-путь : <не задан>
+скрипт-путь : <не задан>
+Эмулятор оболочки ОС. Введите 'exit' для выхода.
+student@debian:/home/student$ ls
+ls: []
+student@debian:/home/student$ ls -l $HOME
+ls: ['-l', '/home/student']
+student@debian:/home/student$ cd a b
+cd: слишком много аргументов
+student@debian:/home/student$ unknown
+unknown: команда не найдена
+student@debian:/home/student$ exit
+
+
+Copy
+
+### 4.2. Режим стартового скрипта (этап 2)
+
+Файл `samples/demo.esh`:
+
+text
+
+Демонстрационный стартовый скрипт эмулятора.
+Комментарии начинаются с символа '#'.
+Пустые строки игнорируются.
+ls
+ls -l $HOME
+cd /tmp
+cd ${HOME}
+cd /tmp /var
+some_unknown_command
+exit
+
+
+Copy
+
+Запуск:
+
+text
+$ ./run.sh --script samples/demo.esh
+Отладка: параметры запуска эмулятора
+VFS-путь : <не задан>
+скрипт-путь : samples/demo.esh
+Эмулятор оболочки ОС. Режим стартового скрипта.
+student@debian:/home/student$ ls
+ls: []
+student@debian:/home/student$ ls -l $HOME
+ls: ['-l', '/home/student']
+student@debian:/home/student$ cd /tmp
+cd: ['/tmp']
+student@debian:/home/student$ cd ${HOME}
+cd: ['/home/student']
+student@debian:/home/student$ cd /tmp /var
+cd: слишком много аргументов
+student@debian:/home/student$ some_unknown_command
+some_unknown_command: команда не найдена
+student@debian:/home/student$ exit
+
+
+Copy
+
+### 4.3. Ошибка чтения стартового скрипта
+
+text
+$ ./run.sh --script missing.esh
+Отладка: параметры запуска эмулятора
+VFS-путь : <не задан>
+скрипт-путь : missing.esh
+script: файл не найден: missing.esh
+
+
+Copy
+
+### 4.4. Тестирование параметров через скрипты реальной ОС
+
+text
+$ ./scripts/run_all_params.sh
+Отладка: параметры запуска эмулятора
+VFS-путь : /path/to/repo/samples/vfs.zip
+скрипт-путь : /path/to/repo/samples/demo.esh
+Эмулятор оболочки ОС. Режим стартового скрипта.
