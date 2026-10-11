@@ -1,9 +1,0 @@
-# Этап 1: REPL и обработка ошибок
-
-pwd
-ls
-cd /home
-cd /missing
-unknown-command
-pwd
-exit
